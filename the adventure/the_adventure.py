@@ -110,7 +110,9 @@ backgroynd_game = transform.scale(image.load("the_background_of_fight.png"),(700
 title_game = transform.scale(image.load("The_adventure_of_Alex_title.png"),(500, 500))
 portal_next_level = transform.scale(image.load("portal_next_level.png"), (120, 135))
 player = Player_Role("ALEX_Adventurer.png", 20, 110, 5)
-enemy = Enemy_Role("enemy_for_adventures.png", 550, 155, 3)
+enemy = Enemy_Role("enemy_for_adventures.png", 550, 160, 3)
+Enemy_2 = Enemy_Role("enemy_for_adventures.png", 550, 160, 3)
+Enemy_3 = Enemy_Role("enemy_for_adventures.png", 400, 310, 3)
 bullet = Bullet("bullet.png", 40, 7, 2 , -1)
 font.init()
 style = font.SysFont("Arial", 34)
@@ -136,7 +138,8 @@ all_walls_level_1 = [floor, upfloor, Door_wall, first_wall, second_wall, trio_wa
 # level two walls
 Door_wall_level_2 =  walls(red_support, blue_support, green_support, 520, 290, 30, 140)
 first_wall_level_2 = walls(red, green, blue, 520, 270, 380, 20)
-all_walls_level_2 = [floor, upfloor, Door_wall_level_2, first_wall_level_2]
+second_wall_level_2 = walls(red, green, blue, 670, 0, 30, 280)
+all_walls_level_2 = [floor, upfloor, Door_wall_level_2, first_wall_level_2, second_wall_level_2]
 global levels
 levels = 0
 #music for background
@@ -212,6 +215,8 @@ while run:
             levels = 2
             player.rect.x = 20
             player.rect.y = 110
+            player.hp = 200
+            enemy_bullets.clear()
 
         player_hp_text = ui_font.render(f"Alex HP: {player.hp}", True, (255, 255, 255))
         enemy_hp_text = ui_font.render(f"Enemy HP: {enemy.hp}", True, (225, 100, 100))
@@ -229,13 +234,83 @@ while run:
     
     if levels == 2:
         keys_pressed = key.get_pressed()
-        player.reset()
-        player.update(keys_pressed, all_walls_level_2)
+
+        active_walls_2 = []
         for wall in all_walls_level_2:
+            if wall == Door_wall_level_2 and Enemy_2.hp <= 0 and Enemy_3.hp <= 0:
+                continue
+            active_walls_2.append(wall)
+
+        if player.hp > 0:
+            player.reset()
+            player.update(keys_pressed, active_walls_2)
+            player.attack(Enemy_2, keys_pressed)
+            player.attack(Enemy_3, keys_pressed)
+        
+        if Enemy_2.hp > 0:
+            Enemy_2.reset()
+            Enemy_2.shoot(enemy_bullets)
+        
+        if Enemy_3.hp > 0:
+            Enemy_3.reset()
+            Enemy_3.shoot(enemy_bullets)
+
+        window.blit(portal_next_level, (portal_rect.x, portal_rect.y))
+
+        for bullet in enemy_bullets[:]:
+            if Enemy_2.hp <= 0 and Enemy_3.hp <= 0:
+                enemy_bullets.clear()
+                break
+            bullet.update()
+            bullet.reset()
+        
+            if bullet.rect.colliderect(player.rect) and player.hp > 0:
+                player.hp -= 30
+                enemy_bullets.remove(bullet)
+                if player.hp < 0: player.hp = 0
+                continue
+            
+            hit_wall_2 = False
+            for wall in active_walls_2:
+                if bullet.rect.colliderect(wall.rect):
+                    hit_wall_2 = True
+                    break
+
+            if hit_wall_2:
+                enemy_bullets.remove(bullet)
+                continue
+
+            if bullet.rect.x < 0 or bullet.rect.x > 700:
+                enemy_bullets.remove(bullet)
+        
+        for wall in active_walls_2:
             wall.draw_wall()
+        
+        if Enemy_2.hp <= 0 and Enemy_3.hp <= 0 and player.rect.colliderect(portal_rect):
+            levels = 3
+            enemy_bullets.clear()
+            player.rect.x = 20
+            player.rect.y = 110
+        
+        player_hp_text = ui_font.render(f"Alex HP: {player.hp}", True, (255, 255, 255))
+        enemy_2_hp_text = ui_font.render(f"Enemy1 HP: {Enemy_2.hp}", True, (225, 100, 100))
+        enemy_3_hp_text = ui_font.render(f"Enemy2 HP: {Enemy_3.hp}", True, (225, 100, 100))
+        window.blit(player_hp_text, (20, 20))
+        window.blit(enemy_2_hp_text, (550, 20))
+        window.blit(enemy_3_hp_text, (550, 50))
+        
+        if player.hp <= 0:
+            lost_text = style.render("GAME OVER", True, (255, 0, 0))
+            window.blit(lost_text, (280, 200))
+        
+        elif Enemy_2.hp <= 0 and Enemy_3.hp <= 0:
+            win_text = style.render("DOOR OPEN! Reach the portal on the right", True, (0, 255, 0))
+            window.blit(win_text, (90, 90))
     
     if levels == 3:
-        pass
+        window.fill((20, 20, 40))
+        end_text = style.render("LEVEL 3 COMING SOON!", True, (225, 225, 225))
+        window.blit(end_text, (180, 220))
     
     for e in event.get():
         if e.type == QUIT:
@@ -243,4 +318,4 @@ while run:
     
     
     clock.tick(FPS)
-    display.update()
+    display.update() 

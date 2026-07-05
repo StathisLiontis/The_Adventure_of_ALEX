@@ -130,8 +130,9 @@ def SHOW_LOADING_SCREEN(duration_ms = 2000):
         if progress >= 100:
             progress = 100
             loading_run = False
-        window.fill((20, 20, 40))
-        window.blit(title_game,(90,-85))
+        window.blit(loading_image_game, (0, 0))
+        Loading_title_game = transform.scale(image.load("The_adventure_of_Alex_title.png"),(125, 125))
+        window.blit(Loading_title_game,(1,1))
         percent_text = f"Loading... {int(progress)}%"
         LOADING_SCREEN_text = style.render(percent_text, True, (225, 225, 225))
         window.blit(LOADING_SCREEN_text, (260, 360))
@@ -148,6 +149,7 @@ display.set_caption('The Adventure of ALEX')
 # BACKGROYND, TITLE AND PORTAL 
 backgroynd_game = transform.scale(image.load("the_background_of_fight.png"),(700, 500))
 title_game = transform.scale(image.load("The_adventure_of_Alex_title.png"),(500, 500))
+loading_image_game = transform.scale(image.load("Loading_background.png"),(700, 500))
 portal_next_level = transform.scale(image.load("portal_next_level.png"), (120, 135))
 # CHARACTERS
 player = Player_Role("ALEX_Adventurer.png", 20, 110, 5)

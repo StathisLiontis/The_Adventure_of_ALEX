@@ -16,22 +16,58 @@ class GameSprite(sprite.Sprite):
 class Player_Role(GameSprite):
     def __init__(self, player_image, player_x, player_y, player_speed):
         super().__init__(player_image, player_x, player_y, player_speed)
+        
+        # fist image
+        self.idle_image = self.image
+
+        self.idle_image_left = transform.flip(self.idle_image, True, False)
+
+        self.attack_frames_right = [
+            transform.scale(image.load("ALEX_Animation_1.png"), (110, 110)),
+            transform.scale(image.load("ALEX_Animation_2.png"), (110, 110)),
+            transform.scale(image.load("ALEX_Animation_3.png"), (110, 110)),
+            transform.scale(image.load("ALEX_Animation_4.png"), (150, 110))
+        ]
+        
+        self.attack_frames_left = [transform.flip(frame, True, False) for frame in self.attack_frames_right]
+
+        self.facing_right = True
+
+        self.is_attacking = False
+        self.attack_frame_index = 0
+        self.attack_timer = 0
+
         # IMPORTAL FOR USE
         self.y_vel = 0
         self.is_grounded = False
         self.jump_pressed = False
         self.hp = 200
     
+    def reset(self):
+        if self.facing_right:
+            window.blit(self.image, (self.rect.x, self.rect.y))
+        else:
+            if not self.is_attacking:
+                window.blit(self.idle_image_left, (self.rect.x, self.rect.y))
+            else:
+                window.blit(self.image, (self.rect.x, self.rect.y))
+
     def update(self, keys_pressed, walls_list):
         # PLAYER MOVE LEFT
         if keys_pressed[K_LEFT] and self.rect.x > 3:
             self.rect.x -= self.speed
+            self.facing_right = False
+            if not self.is_attacking:
+                self.image = self.idle_image_left
             for wall in walls_list:
                 if self.rect.colliderect(wall.rect):
                     self.rect.left = wall.rect.right
         # PLAYER MOVE RIGHT 
         if keys_pressed[K_RIGHT]:
             self.rect.x += self.speed
+            self.facing_right = True
+            if not self.is_attacking:
+                self.image = self.idle_image
             for wall in walls_list:
                 if self.rect.colliderect(wall.rect):
                     self.rect.right = wall.rect.left
@@ -57,20 +93,45 @@ class Player_Role(GameSprite):
             if self.rect.colliderect(wall.rect):
                 self.is_grounded = True
         self.rect.y -= 1
-        # JUMP MECHANIC ???
-        if keys_pressed[K_SPACE] or keys_pressed[K_UP] and not self.jump_pressed:
+        # JUMP MECHANIC 
+        if keys_pressed[K_SPACE] or keys_pressed[K_UP] and not self.jump_pressed and self.is_grounded:
             self.y_vel = -14
             self.is_grounded = False
             self.jump_pressed = True
         if not keys_pressed[K_SPACE] and not keys_pressed[K_UP]:
             self.jump_pressed = False
     # ATTACK HOW PLAYER DO DAMAGE IN ENEMYS WITH BUTTON F
-    def attack(self, enemy_sprite, keys_pressed):
-        if keys_pressed[K_f]:
-            if self.rect.colliderect(enemy_sprite.rect):
-                enemy_sprite.hp -= 1
-                if enemy_sprite.hp < 0:
-                    enemy_sprite.hp = 0
+    def attack(self, enemies_list, keys_pressed):
+        if keys_pressed[K_f] and not self.is_attacking:
+            self.is_attacking = True
+            self.attack_frame_index = 0
+            self.attack_timer = time.get_ticks()
+            
+            if self.facing_right:
+                self.image = self.attack_frames_right[0]
+            else:
+                self.image = self.attack_frames_left[0]
+            
+            # Damage On Enemy
+            for enemy_sprite in enemies_list:
+                if enemy_sprite.hp > 0 and self.rect.colliderect(enemy_sprite.rect):
+                    enemy_sprite.hp -= 50
+                    if enemy_sprite.hp < 0:
+                        enemy_sprite.hp = 0
+            
+        if self.is_attacking:
+            now = time.get_ticks()
+            if now - self.attack_timer > 120:
+                self.attack_frame_index += 1
+                self.attack_timer = now
+                
+                frames_to_use = self.attack_frames_right if self.facing_right else self.attack_frames_left
+                
+                if self.attack_frame_index < len(frames_to_use):
+                    self.image = frames_to_use[self.attack_frame_index]
+                else:
+                    self.is_attacking = False
+                    self.image = self.idle_image if self.facing_right else self.idle_image_left
 
 # Enemy class to work
 class Enemy_Role(GameSprite):
@@ -131,7 +192,6 @@ def SHOW_LOADING_SCREEN(duration_ms = 2000):
             progress = 100
             loading_run = False
         window.blit(loading_image_game, (0, 0))
-        Loading_title_game = transform.scale(image.load("The_adventure_of_Alex_title.png"),(125, 125))
         window.blit(Loading_title_game,(1,1))
         percent_text = f"Loading... {int(progress)}%"
         LOADING_SCREEN_text = style.render(percent_text, True, (225, 225, 225))
@@ -150,13 +210,13 @@ display.set_caption('The Adventure of ALEX')
 backgroynd_game = transform.scale(image.load("the_background_of_fight.png"),(700, 500))
 title_game = transform.scale(image.load("The_adventure_of_Alex_title.png"),(500, 500))
 loading_image_game = transform.scale(image.load("Loading_background.png"),(700, 500))
+Loading_title_game = transform.scale(image.load("The_adventure_of_Alex_title.png"),(125, 125))
 portal_next_level = transform.scale(image.load("portal_next_level.png"), (120, 135))
 # CHARACTERS
 player = Player_Role("ALEX_Adventurer.png", 20, 110, 5)
 enemy = Enemy_Role("enemy_for_adventures.png", 550, 160, 3)
 Enemy_2 = Enemy_Role("enemy_for_adventures.png", 550, 160, 3)
 Enemy_3 = Enemy_Role("enemy_for_adventures.png", 400, 310, 3)
-bullet = Bullet("bullet.png", 40, 7, 2 , -1)
 # FONT FOR TEXTS
 font.init()
 style = font.SysFont("Arial", 34)
@@ -204,6 +264,11 @@ SHOW_LOADING_SCREEN(5000)
 run = True
 while run:
     window.blit(backgroynd_game,(0,0))
+    # IMPORTAL THING IS HOW THE GAME CLOSES
+    for e in event.get():
+        if e.type == QUIT:
+            run = False
+    
     #levels and items
     #level 0 the menu
     if levels == 0:
@@ -228,7 +293,7 @@ while run:
         if player.hp > 0:
             player.reset()
             player.update(keys_pressed, active_walls)
-            player.attack(enemy, keys_pressed)
+            player.attack([enemy], keys_pressed)
         # ENEMY WORK IN GAME
         if enemy.hp > 0:
             enemy.reset()
@@ -301,8 +366,7 @@ while run:
         if player.hp > 0:
             player.reset()
             player.update(keys_pressed, active_walls_2)
-            player.attack(Enemy_2, keys_pressed)
-            player.attack(Enemy_3, keys_pressed)
+            player.attack([Enemy_2, Enemy_3], keys_pressed)
         # FIST ENEMY IN LEVEL 2 WORK
         if Enemy_2.hp > 0:
             Enemy_2.reset()
@@ -371,11 +435,6 @@ while run:
         window.fill((20, 20, 40))
         end_text = style.render("LEVEL 3 COMING SOON!", True, (225, 225, 225))
         window.blit(end_text, (180, 220))
-    
-    # IMPORTAL THING IS HOW THE GAME CLOSES
-    for e in event.get():
-        if e.type == QUIT:
-            run = False
     
     # THE WINDOW STAY UPDATE!!!!
     clock.tick(FPS)

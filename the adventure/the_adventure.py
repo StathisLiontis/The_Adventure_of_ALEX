@@ -1,5 +1,7 @@
 # import things
 from pygame import *
+# sure pygame core
+init()
 # class
 class GameSprite(sprite.Sprite):
     def __init__(self, player_image, player_x, player_y, player_speed):
@@ -147,15 +149,20 @@ class Enemy_Role(GameSprite):
 
 # BULLETS CLASS TO WORK
 class Bullet(GameSprite):
+    raw_bullet_img = None
     def __init__(self, Bullet_image, x, y, speed, direction):
         super().__init__(Bullet_image, x, y, speed)
-        self.image = transform.scale(image.load(Bullet_image), (20, 20))
+        if Bullet.raw_bullet_img is None:
+            Bullet.raw_bullet_img = image.load(Bullet_image)
+        self.image = transform.scale(Bullet.raw_bullet_img, (20, 20))
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
         self.direction = direction
     def update(self):
         self.rect.x += self.speed * self.direction
+    def reset(self):
+        window.blit(self.image, (self.rect.x, self.rect.y))
 
 # WALLS CLASS TO WORK AND DRAW AND COLOR AND WIDTH AND LAST HEIGHT
 class walls(sprite.Sprite):
@@ -201,10 +208,22 @@ def SHOW_LOADING_SCREEN(duration_ms = 2000):
         clock.tick(FPS)
         display.update()
 
+def reset_game():
+    global enemy_bullets
+    player.rect.x, player.rect.y = 20, 110
+    player.hp = 200
+    player.y_vel = 0
+    player.is_attacking = False
+    player.image = player.idle_image
+    enemy.hp = 300
+    Enemy_2.hp = 300
+    Enemy_3.hp = 300
+    enemy_bullets.clear()
+
+
 #create game window
 window = display.set_mode((700, 500))
 display.set_caption('The Adventure of ALEX')
-init()
 #background and characters
 # BACKGROYND, TITLE AND PORTAL 
 backgroynd_game = transform.scale(image.load("the_background_of_fight.png"),(700, 500))
@@ -253,8 +272,10 @@ trio_wall_level_2 = walls(red, green, blue, 200, 230, 30, 200)
 four_wall_level_2 = walls(red, green, blue, 370, 0, 30, 210)
 all_walls_level_2 = [floor, upfloor, Door_wall_level_2, first_wall_level_2, second_wall_level_2, trio_wall_level_2, four_wall_level_2]
 # GLOBAL THINGS
-global levels
+global levels, Coins, Items
 levels = 0
+Coins = 0
+Items = None
 previous_level = 0
 
 play_btn_rect = Rect(250, 240, 200, 50)
@@ -262,10 +283,13 @@ friends_btn_rect = Rect(250, 310, 200, 50)
 settings_btn_rect = Rect(250, 380, 200, 50)
 
 ingame_settings_rect = Rect(15, 455, 80, 30)
-back_btn_rect = Rect(140, 340, 160, 45)
-quit_rect = Rect(400, 340, 160, 45)
+back_btn_rect = Rect(140, 380, 160, 45)
+quit_rect = Rect(400, 380, 160, 45)
 slider_bg_rect = Rect(170, 280, 360, 20)
 sound_toggle_rect = Rect(250, 170, 200, 45)
+restart_level_rect = Rect(140, 330, 170, 40)
+go_to_menu_rect = Rect(400, 330, 170, 40)
+level3_menu_rect = Rect(220, 300, 200, 50)
 
 volume = 0.3
 sound_enabled = True
@@ -289,7 +313,7 @@ while run:
         active_music_context = previous_level
     
     if sound_enabled:
-        if active_music_context in [0, "friends"]:
+        if active_music_context in [0, "friends", 3]:
             if current_track != "menu_track":
                 mixer.music.load("jorisvermeer_epic_adventure.mp3")
                 mixer.music.play(-1)
@@ -323,11 +347,14 @@ while run:
                 if play_btn_rect.collidepoint((mx, my)):
                     mixer.music.stop()
                     levels = 1
+                    print("PLAY")
                     SHOW_LOADING_SCREEN(3000)
                 elif friends_btn_rect.collidepoint((mx, my)):
+                    print("friends")
                     levels = "friends"
                 elif settings_btn_rect.collidepoint((mx, my)):
                     previous_level = 0
+                    print("Settings")
                     levels = "settings"
             
             elif levels in [1, 2]:
@@ -355,18 +382,28 @@ while run:
                 elif slider_bg_rect.collidepoint((mx, my)):
                     if sound_enabled:
                         dragging_slider = True
-                        if mx < slider_bg_rect.x: mx_clamped = slider_bg_rect.x
-                        elif mx > slider_bg_rect.x + slider_bg_rect.width: mx_clamped = slider_bg_rect.x + slider_bg_rect.width
-                        else: mx_clamped = mx
+                        mx_clamped = max(slider_bg_rect.x, min(mx, slider_bg_rect.x + slider_bg_rect.width))
                         volume = (mx_clamped - slider_bg_rect.x) / slider_bg_rect.width
                         mixer.music.set_volume(volume)
+                elif previous_level in [1, 2] and restart_level_rect.collidepoint((mx, my)):
+                    reset_game()
+                    levels = previous_level
+                    SHOW_LOADING_SCREEN(1500)
+                
+                elif previous_level in [1, 2] and go_to_menu_rect.collidepoint((mx, my)):
+                    reset_game()
+                    levels = 0
+                    SHOW_LOADING_SCREEN(1500)
+            elif levels == 3:
+                if level3_menu_rect.collidepoint((mx, my)):
+                    reset_game()
+                    levels = 0
+                    SHOW_LOADING_SCREEN(1500)
         if e.type == MOUSEBUTTONUP and e.button == 1:
             dragging_slider = False
     
     if levels == "settings" and dragging_slider and sound_enabled:
-        if mx < slider_bg_rect.x: mx_clamped = slider_bg_rect.x
-        elif mx > slider_bg_rect.x + slider_bg_rect.width: mx_clamped = slider_bg_rect.x + slider_bg_rect.width
-        else: mx_clamped = mx
+        mx_clamped = max(slider_bg_rect.x, min(mx, slider_bg_rect.x + slider_bg_rect.width))
         volume = (mx_clamped - slider_bg_rect.x) / slider_bg_rect.width
         mixer.music.set_volume(volume)
     #levels and items
@@ -395,7 +432,7 @@ while run:
         window.blit(style.render("BACK", True, (255, 255, 255)), (back_btn_rect.x + 35, back_btn_rect.y + 5))
     
     elif levels == "settings":
-        settings_panel = Surface((500, 320))
+        settings_panel = Surface((500, 360))
         settings_panel.fill((40, 40, 40))
         window.blit(settings_panel, (100, 90))
         window.blit(style.render("SETTINGS", True, (255, 255, 255)), (280, 105))
@@ -417,6 +454,15 @@ while run:
         
         window.blit(style.render(vol_text, True, (255, 255, 255) if sound_enabled else (150, 150, 150)), (slider_bg_rect.x + 1, slider_bg_rect.y - 50))
 
+        if previous_level in [1, 2]:
+            restart_color = (230, 140, 10) if restart_level_rect.collidepoint((mx, my)) else (180, 110, 10)
+            draw.rect(window, restart_color, restart_level_rect)
+            window.blit(ui_font.render("RESTART LEVEL", True, (255, 255, 255)), (restart_level_rect.x + 10, restart_level_rect.y + 7))
+
+            menu_btn_color = (130, 40, 180) if go_to_menu_rect.collidepoint((mx, my)) else (90, 30, 130)
+            draw.rect(window, menu_btn_color, go_to_menu_rect)
+            window.blit(ui_font.render("MAIN MENU", True, (255, 255, 255)), (go_to_menu_rect.x + 30, go_to_menu_rect.y + 7))
+        
         draw.rect(window, (150, 150, 150) if back_btn_rect.collidepoint((mx, my)) else (100, 100, 100), back_btn_rect)
         window.blit(style.render("BACK", True, (255, 255, 255)), (back_btn_rect.x + 40, back_btn_rect.y + 5))
 
@@ -487,8 +533,12 @@ while run:
         # HP HEALTH BARS
         player_hp_text = ui_font.render(f"Alex HP: {player.hp}", True, (255, 255, 255))
         enemy_hp_text = ui_font.render(f"Enemy HP: {enemy.hp}", True, (225, 100, 100))
+        items_text = ui_font.render(f"ITEMS: {Items}", True, (155, 132, 255))
+        Coin_text = ui_font.render(f"COIN: {Coins}", True, (255, 255, 30))
         window.blit(player_hp_text, (20, 20))
         window.blit(enemy_hp_text, (530, 20))
+        window.blit(items_text, (100, 450))
+        window.blit(Coin_text, (100, 470))
         
         btn_color = (253, 107, 0) if ingame_settings_rect.collidepoint((mx, my)) else (100, 100, 100)
         draw.rect(window, btn_color, ingame_settings_rect)
@@ -571,9 +621,13 @@ while run:
         player_hp_text = ui_font.render(f"Alex HP: {player.hp}", True, (255, 255, 255))
         enemy_2_hp_text = ui_font.render(f"Enemy1 HP: {Enemy_2.hp}", True, (225, 100, 100))
         enemy_3_hp_text = ui_font.render(f"Enemy2 HP: {Enemy_3.hp}", True, (225, 100, 100))
+        items_text = ui_font.render(f"ITEMS: {Items}", True, (155, 132, 255))
+        Coin_text = ui_font.render(f"COIN: {Coins}", True, (255, 255, 30))
         window.blit(player_hp_text, (20, 20))
         window.blit(enemy_2_hp_text, (520, 20))
         window.blit(enemy_3_hp_text, (520, 50))
+        window.blit(items_text, (100, 450))
+        window.blit(Coin_text, (100, 470))
         
         btn_color = (253, 107, 0) if ingame_settings_rect.collidepoint((mx, my)) else (100, 100, 100)
         draw.rect(window, btn_color, ingame_settings_rect)
@@ -595,11 +649,9 @@ while run:
         end_text = style.render("LEVEL 3 COMING SOON!", True, (225, 225, 225))
         window.blit(end_text, (180, 220))
 
-        keys_pressed = key.get_pressed()
-        back_msg = ui_font.render("PRESS 'M' TO RETURN TO MAIN MENU", True, (150, 150, 150))
-        window.blit(back_msg, (190, 280))
-        if keys_pressed[K_m]:
-            levels = 0
+        menu_btn_color_3 = (253, 107, 0) if level3_menu_rect.collidepoint((mx, my)) else (100, 100, 100)
+        draw.rect(window, menu_btn_color_3, level3_menu_rect)
+        window.blit(style.render("MAIN MENU", True, (255, 255, 255)), (level3_menu_rect.x + 20, level3_menu_rect.y + 5))
     
     # THE WINDOW STAY UPDATE!!!!
     clock.tick(FPS)

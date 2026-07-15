@@ -19,7 +19,6 @@ class Player_Role(GameSprite):
         
         # fist image
         self.idle_image = self.image
-
         self.idle_image_left = transform.flip(self.idle_image, True, False)
 
         self.attack_frames_right = [
@@ -208,7 +207,7 @@ display.set_caption('The Adventure of ALEX')
 #background and characters
 # BACKGROYND, TITLE AND PORTAL 
 backgroynd_game = transform.scale(image.load("the_background_of_fight.png"),(700, 500))
-title_game = transform.scale(image.load("The_adventure_of_Alex_title.png"),(500, 500))
+title_game = transform.scale(image.load("The_adventure_of_Alex_title.png"),(400, 400))
 loading_image_game = transform.scale(image.load("Loading_background.png"),(700, 500))
 Loading_title_game = transform.scale(image.load("The_adventure_of_Alex_title.png"),(125, 125))
 portal_next_level = transform.scale(image.load("portal_next_level.png"), (120, 135))
@@ -252,6 +251,20 @@ all_walls_level_2 = [floor, upfloor, Door_wall_level_2, first_wall_level_2, seco
 # GLOBAL THINGS
 global levels
 levels = 0
+
+play_btn_rect = Rect(250, 240, 200, 50)
+friends_btn_rect = Rect(250, 310, 200, 50)
+settings_btn_rect = Rect(250, 380, 200, 50)
+
+back_btn_rect = Rect(140, 340, 160, 45)
+quit_rect = Rect(400, 340, 160, 45)
+slider_bg_rect = Rect(170, 280, 360, 20)
+sound_toggle_rect = Rect(250, 170, 200, 45)
+
+volume = 0.3
+sound_enabled = True
+dragging_slider = False
+
 #music for background
 #mixer.init()
 #mixer.music.load("")
@@ -264,22 +277,102 @@ SHOW_LOADING_SCREEN(5000)
 run = True
 while run:
     window.blit(backgroynd_game,(0,0))
+    mx, my = mouse.get_pos()
     # IMPORTAL THING IS HOW THE GAME CLOSES
     for e in event.get():
         if e.type == QUIT:
             run = False
     
+        if e.type == MOUSEBUTTONDOWN and e.button == 1:
+            if levels == 0:
+                if play_btn_rect.collidepoint((mx, my)):
+                    levels = 1
+                    SHOW_LOADING_SCREEN(3000)
+                elif friends_btn_rect.collidepoint((mx, my)):
+                    levels = "friends"
+                elif settings_btn_rect.collidepoint((mx, my)):
+                    levels = "settings"
+            
+            elif levels == "friends":
+                if back_btn_rect.collidepoint((mx, my)):
+                    levels = 0 
+            
+            elif levels == "settings":
+                if back_btn_rect.collidepoint((mx, my)):
+                    levels = 0
+                elif sound_toggle_rect.collidepoint((mx, my)):
+                    sound_enabled = not sound_enabled
+                elif quit_rect.collidepoint((mx, my)):
+                    print("QUIT THE GAME FOR SETTINGS")
+                    run = False
+                elif slider_bg_rect.collidepoint((mx, my)):
+                    if sound_enabled:
+                        dragging_slider = True
+        if e.type == MOUSEBUTTONUP and e.button == 1:
+            dragging_slider = False
+    
+    if levels == "settings" and dragging_slider and sound_enabled:
+        if mx < slider_bg_rect.x: mx_clamped = slider_bg_rect.x
+        elif mx > slider_bg_rect.x + slider_bg_rect.width: mx_clamped = slider_bg_rect.x + slider_bg_rect.width
+        else: mx_clamped = mx
+        volume = (mx_clamped - slider_bg_rect.x) / slider_bg_rect.width
+    
     #levels and items
     #level 0 the menu
     if levels == 0:
-        window.blit(title_game,(90,-85))
-        keys_pressed = key.get_pressed()
-        start_text = style.render('Press S to Start', True, (255, 255, 70))
-        window.blit(start_text, (250, 345))
-        if keys_pressed[K_s]:
-            levels = 1
-            SHOW_LOADING_SCREEN(3000)
-            
+        window.blit(title_game,(140,-100))
+
+        draw.rect(window, (253, 107, 0) if play_btn_rect.collidepoint((mx, my)) else (169, 231, 231), play_btn_rect)
+        window.blit(style.render('PLAY', True, (255, 255, 255)), (play_btn_rect.x + 60, play_btn_rect.y + 5))
+
+        draw.rect(window, (253, 107, 0) if friends_btn_rect.collidepoint((mx, my)) else (169, 231, 231), friends_btn_rect)
+        window.blit(style.render("1V1 FRIENDS", True, (255, 255, 255)), (friends_btn_rect.x + 15, friends_btn_rect.y + 10))
+
+        draw.rect(window, (253, 107, 0) if settings_btn_rect.collidepoint((mx, my)) else (169, 231, 231), settings_btn_rect)
+        window.blit(style.render("SETTINGS", True, (255, 255, 255)), (settings_btn_rect.x + 25, settings_btn_rect.y + 5))
+       
+    elif levels == "friends":
+        panel = Surface((500, 320))
+        panel.fill((40, 40, 40))
+        window.blit(panel, (100, 90))
+
+        coming_soon_text = style.render("1v1 FRIENDS COMING SOON!", True, (255, 50, 50))
+        window.blit(coming_soon_text, (150, 180))
+
+        draw.rect(window, (150, 150, 150) if back_btn_rect.collidepoint((mx, my)) else (100, 100, 100), back_btn_rect)
+        window.blit(style.render("BACK", True, (255, 255, 255)), (back_btn_rect.x + 35, back_btn_rect.y + 5))
+    
+    elif levels == "settings":
+        settings_panel = Surface((500, 320))
+        settings_panel.fill((40, 40, 40))
+        window.blit(settings_panel, (100, 90))
+        window.blit(style.render("SETTINGS", True, (255, 255, 255)), (280, 105))
+
+        sound_btn_color = (0, 180, 50) if sound_enabled else (180, 40, 40)
+        draw.rect(window, sound_btn_color, sound_toggle_rect)
+        sound_status_text = "SOUND: ON" if sound_enabled else "SOUND: OFF"
+        window.blit(style.render(sound_status_text, True, (255, 255, 255)), (sound_toggle_rect.x + 15, sound_toggle_rect.y + 5))
+
+        slider_color = (70, 70, 70) if sound_enabled else (50, 50, 50)
+        draw.rect(window, slider_color, slider_bg_rect)
+
+        if sound_enabled:
+            slider_handle_x = slider_bg_rect.x + int(volume * slider_bg_rect.width)
+            draw.rect(window, (200, 50, 50), (slider_handle_x - 10, slider_bg_rect.y - 10, 20, 40))
+            vol_text = f"VOLUME OF MUSIC: {int(volume * 100)}%"
+        else:
+            vol_text = "VOLUME OF MUSIC: MUTED"
+        
+        window.blit(style.render(vol_text, True, (255, 255, 255) if sound_enabled else (150, 150, 150)), (slider_bg_rect.x + 1, slider_bg_rect.y - 50))
+
+        draw.rect(window, (150, 150, 150) if back_btn_rect.collidepoint((mx, my)) else (100, 100, 100), back_btn_rect)
+        window.blit(style.render("BACK", True, (255, 255, 255)), (back_btn_rect.x + 40, back_btn_rect.y + 5))
+
+        draw.rect(window, (200, 50, 50) if quit_rect.collidepoint((mx, my)) else (100, 100, 100), quit_rect)
+        window.blit(style.render("QUIT", True, (255, 255, 255)), (quit_rect.x + 40, quit_rect.y + 5))
+
+
+
     # level 1 the fist adventure
     if levels == 1:
         keys_pressed = key.get_pressed()
@@ -308,7 +401,8 @@ while run:
             # DAMAGE PLAYER GET FOR BULLETS
             if bullet.rect.colliderect(player.rect) and player.hp > 0:
                 player.hp -= 30
-                enemy_bullets.remove(bullet)
+                if bullet in enemy_bullets:
+                    enemy_bullets.remove(bullet)
                 if player.hp < 0: player.hp = 0
                 continue
             # HIT WALLS THE BULLETS 
@@ -319,11 +413,13 @@ while run:
                     break
             # USE HIT WALLS
             if hit_wall:
-                enemy_bullets.remove(bullet)
+                if bullet in enemy_bullets:
+                    enemy_bullets.remove(bullet)
                 continue
             # OUT THE WINDOW BULLETS NO NO NO
             if bullet.rect.x < 0 or bullet.rect.x > 700:
-                enemy_bullets.remove(bullet)
+                if bullet in enemy_bullets:
+                    enemy_bullets.remove(bullet)
         # WALLS SHOW
         for wall in active_walls:
             wall.draw_wall()
@@ -342,7 +438,7 @@ while run:
         player_hp_text = ui_font.render(f"Alex HP: {player.hp}", True, (255, 255, 255))
         enemy_hp_text = ui_font.render(f"Enemy HP: {enemy.hp}", True, (225, 100, 100))
         window.blit(player_hp_text, (20, 20))
-        window.blit(enemy_hp_text, (550, 20))
+        window.blit(enemy_hp_text, (530, 20))
         # LOSE TEXT 
         if player.hp <= 0:
             lost_text = style.render("GAME OVER", True, (255, 0, 0))
@@ -387,7 +483,8 @@ while run:
             # DAMAGE FOR BULLETS TO PLAYER
             if bullet.rect.colliderect(player.rect) and player.hp > 0:
                 player.hp -= 30
-                enemy_bullets.remove(bullet)
+                if bullet in enemy_bullets:
+                    enemy_bullets.remove(bullet)
                 if player.hp < 0: player.hp = 0
                 continue
             # HIT WALL 
@@ -398,11 +495,13 @@ while run:
                     break
             # WORK HIT WALL
             if hit_wall_2:
-                enemy_bullets.remove(bullet)
+                if bullet in enemy_bullets:
+                    enemy_bullets.remove(bullet)
                 continue
             # BULLET OUT THE WINDOW DELETE
             if bullet.rect.x < 0 or bullet.rect.x > 700:
-                enemy_bullets.remove(bullet)
+                if bullet in enemy_bullets:
+                    enemy_bullets.remove(bullet)
         # DRAW WALLS
         for wall in active_walls_2:
             wall.draw_wall()
@@ -418,8 +517,8 @@ while run:
         enemy_2_hp_text = ui_font.render(f"Enemy1 HP: {Enemy_2.hp}", True, (225, 100, 100))
         enemy_3_hp_text = ui_font.render(f"Enemy2 HP: {Enemy_3.hp}", True, (225, 100, 100))
         window.blit(player_hp_text, (20, 20))
-        window.blit(enemy_2_hp_text, (550, 20))
-        window.blit(enemy_3_hp_text, (550, 50))
+        window.blit(enemy_2_hp_text, (520, 20))
+        window.blit(enemy_3_hp_text, (520, 50))
         # LOSE FOR PLAYER 
         if player.hp <= 0:
             lost_text = style.render("GAME OVER", True, (255, 0, 0))
@@ -438,4 +537,5 @@ while run:
     
     # THE WINDOW STAY UPDATE!!!!
     clock.tick(FPS)
-    display.update() 
+    display.update()
+quit() 

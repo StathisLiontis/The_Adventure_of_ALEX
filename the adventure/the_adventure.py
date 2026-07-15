@@ -93,8 +93,8 @@ class Player_Role(GameSprite):
                 self.is_grounded = True
         self.rect.y -= 1
         # JUMP MECHANIC 
-        if keys_pressed[K_SPACE] or keys_pressed[K_UP] and not self.jump_pressed and self.is_grounded:
-            self.y_vel = -14
+        if (keys_pressed[K_SPACE] or keys_pressed[K_UP]) and not self.jump_pressed and self.is_grounded:
+            self.y_vel = -20
             self.is_grounded = False
             self.jump_pressed = True
         if not keys_pressed[K_SPACE] and not keys_pressed[K_UP]:
@@ -204,6 +204,7 @@ def SHOW_LOADING_SCREEN(duration_ms = 2000):
 #create game window
 window = display.set_mode((700, 500))
 display.set_caption('The Adventure of ALEX')
+init()
 #background and characters
 # BACKGROYND, TITLE AND PORTAL 
 backgroynd_game = transform.scale(image.load("the_background_of_fight.png"),(700, 500))
@@ -220,6 +221,7 @@ Enemy_3 = Enemy_Role("enemy_for_adventures.png", 400, 310, 3)
 font.init()
 style = font.SysFont("Arial", 34)
 ui_font = font.SysFont("Arial", 24)
+small_font = font.SysFont("Arial", 16)
 # ENEMY BULLETS
 enemy_bullets = []
 # PORTAL
@@ -240,22 +242,26 @@ upfloor = walls(red_support, blue_support, green_support, 0, 0, 700, 1)
 #level 1 walls
 Door_wall =  walls(red_support, blue_support, green_support, 320, 290, 30, 140)
 first_wall = walls(red, green, blue, 320, 270, 380, 20)
-second_wall = walls(red, green, blue, 150, 150, 30, 280)
+second_wall = walls(red, green, blue, 150, 220, 30, 210)
 trio_wall = walls(red, green, blue, 670, 0, 30, 280)
 all_walls_level_1 = [floor, upfloor, Door_wall, first_wall, second_wall, trio_wall]
 # level two walls
 Door_wall_level_2 =  walls(red_support, blue_support, green_support, 520, 290, 30, 140)
 first_wall_level_2 = walls(red, green, blue, 520, 270, 380, 20)
 second_wall_level_2 = walls(red, green, blue, 670, 0, 30, 280)
-all_walls_level_2 = [floor, upfloor, Door_wall_level_2, first_wall_level_2, second_wall_level_2]
+trio_wall_level_2 = walls(red, green, blue, 200, 230, 30, 200)
+four_wall_level_2 = walls(red, green, blue, 370, 0, 30, 210)
+all_walls_level_2 = [floor, upfloor, Door_wall_level_2, first_wall_level_2, second_wall_level_2, trio_wall_level_2, four_wall_level_2]
 # GLOBAL THINGS
 global levels
 levels = 0
+previous_level = 0
 
 play_btn_rect = Rect(250, 240, 200, 50)
 friends_btn_rect = Rect(250, 310, 200, 50)
 settings_btn_rect = Rect(250, 380, 200, 50)
 
+ingame_settings_rect = Rect(15, 455, 80, 30)
 back_btn_rect = Rect(140, 340, 160, 45)
 quit_rect = Rect(400, 340, 160, 45)
 slider_bg_rect = Rect(170, 280, 360, 20)
@@ -266,9 +272,8 @@ sound_enabled = True
 dragging_slider = False
 
 #music for background
-#mixer.init()
-#mixer.music.load("")
-#mixer.music.play()
+mixer.init()
+current_track = None
 #clock for FPS
 clock = time.Clock()
 FPS = 60  
@@ -278,19 +283,56 @@ run = True
 while run:
     window.blit(backgroynd_game,(0,0))
     mx, my = mouse.get_pos()
+    
+    active_music_context = levels
+    if levels == "settings":
+        active_music_context = previous_level
+    
+    if sound_enabled:
+        if active_music_context in [0, "friends"]:
+            if current_track != "menu_track":
+                mixer.music.load("jorisvermeer_epic_adventure.mp3")
+                mixer.music.play(-1)
+                current_track = "menu_track"
+            mixer.music.set_volume(volume)
+
+        elif active_music_context in [1, 2]:
+            if current_track != "game_track":
+                mixer.music.load("gearfive_epic_adventure.mp3")
+                mixer.music.play(-1)
+                volume = 0.2
+                current_track = "game_track"
+            mixer.music.set_volume(volume)
+        else:
+            if mixer.music.get_busy():
+                mixer.music.stop()
+                current_track = None
+    else:
+        if mixer.music.get_busy():
+            mixer.music.stop()
+            current_track = None
+    
     # IMPORTAL THING IS HOW THE GAME CLOSES
     for e in event.get():
         if e.type == QUIT:
+            print("QUIT FOR QUIT")
             run = False
     
         if e.type == MOUSEBUTTONDOWN and e.button == 1:
             if levels == 0:
                 if play_btn_rect.collidepoint((mx, my)):
+                    mixer.music.stop()
                     levels = 1
                     SHOW_LOADING_SCREEN(3000)
                 elif friends_btn_rect.collidepoint((mx, my)):
                     levels = "friends"
                 elif settings_btn_rect.collidepoint((mx, my)):
+                    previous_level = 0
+                    levels = "settings"
+            
+            elif levels in [1, 2]:
+                if ingame_settings_rect.collidepoint((mx, my)):
+                    previous_level = levels
                     levels = "settings"
             
             elif levels == "friends":
@@ -299,15 +341,25 @@ while run:
             
             elif levels == "settings":
                 if back_btn_rect.collidepoint((mx, my)):
-                    levels = 0
+                    levels = previous_level
                 elif sound_toggle_rect.collidepoint((mx, my)):
                     sound_enabled = not sound_enabled
+                    if not sound_enabled:
+                        mixer.music.stop()
+                    else:
+                        mixer.music.play(-1)
+                        mixer.music.set_volume(volume)
                 elif quit_rect.collidepoint((mx, my)):
                     print("QUIT THE GAME FOR SETTINGS")
                     run = False
                 elif slider_bg_rect.collidepoint((mx, my)):
                     if sound_enabled:
                         dragging_slider = True
+                        if mx < slider_bg_rect.x: mx_clamped = slider_bg_rect.x
+                        elif mx > slider_bg_rect.x + slider_bg_rect.width: mx_clamped = slider_bg_rect.x + slider_bg_rect.width
+                        else: mx_clamped = mx
+                        volume = (mx_clamped - slider_bg_rect.x) / slider_bg_rect.width
+                        mixer.music.set_volume(volume)
         if e.type == MOUSEBUTTONUP and e.button == 1:
             dragging_slider = False
     
@@ -316,7 +368,7 @@ while run:
         elif mx > slider_bg_rect.x + slider_bg_rect.width: mx_clamped = slider_bg_rect.x + slider_bg_rect.width
         else: mx_clamped = mx
         volume = (mx_clamped - slider_bg_rect.x) / slider_bg_rect.width
-    
+        mixer.music.set_volume(volume)
     #levels and items
     #level 0 the menu
     if levels == 0:
@@ -370,8 +422,6 @@ while run:
 
         draw.rect(window, (200, 50, 50) if quit_rect.collidepoint((mx, my)) else (100, 100, 100), quit_rect)
         window.blit(style.render("QUIT", True, (255, 255, 255)), (quit_rect.x + 40, quit_rect.y + 5))
-
-
 
     # level 1 the fist adventure
     if levels == 1:
@@ -439,6 +489,11 @@ while run:
         enemy_hp_text = ui_font.render(f"Enemy HP: {enemy.hp}", True, (225, 100, 100))
         window.blit(player_hp_text, (20, 20))
         window.blit(enemy_hp_text, (530, 20))
+        
+        btn_color = (253, 107, 0) if ingame_settings_rect.collidepoint((mx, my)) else (100, 100, 100)
+        draw.rect(window, btn_color, ingame_settings_rect)
+        window.blit(small_font.render("SETTINGS", True, (255, 255, 255)), (ingame_settings_rect.x + 8, ingame_settings_rect.y + 5))
+        
         # LOSE TEXT 
         if player.hp <= 0:
             lost_text = style.render("GAME OVER", True, (255, 0, 0))
@@ -519,6 +574,11 @@ while run:
         window.blit(player_hp_text, (20, 20))
         window.blit(enemy_2_hp_text, (520, 20))
         window.blit(enemy_3_hp_text, (520, 50))
+        
+        btn_color = (253, 107, 0) if ingame_settings_rect.collidepoint((mx, my)) else (100, 100, 100)
+        draw.rect(window, btn_color, ingame_settings_rect)
+        window.blit(small_font.render("SETTINGS", True, (255, 255, 255)), (ingame_settings_rect.x + 8, ingame_settings_rect.y + 5))
+        
         # LOSE FOR PLAYER 
         if player.hp <= 0:
             lost_text = style.render("GAME OVER", True, (255, 0, 0))
@@ -534,6 +594,12 @@ while run:
         window.fill((20, 20, 40))
         end_text = style.render("LEVEL 3 COMING SOON!", True, (225, 225, 225))
         window.blit(end_text, (180, 220))
+
+        keys_pressed = key.get_pressed()
+        back_msg = ui_font.render("PRESS 'M' TO RETURN TO MAIN MENU", True, (150, 150, 150))
+        window.blit(back_msg, (190, 280))
+        if keys_pressed[K_m]:
+            levels = 0
     
     # THE WINDOW STAY UPDATE!!!!
     clock.tick(FPS)

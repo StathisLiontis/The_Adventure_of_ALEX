@@ -2,17 +2,46 @@
 from pygame import *
 # sure pygame core
 init()
+
+# defs for safe
+def load_safe_image(path, size, color=(255, 0, 255)):
+    try:
+        return transform.scale(image.load(path), size)
+    except Exception:
+        surf = Surface(size)
+        surf.fill(color)
+        return surf
+
+def play_music_safe(track_path, volume):
+    try:
+        mixer.music.load(track_path)
+        mixer.music.play(-1)
+        mixer.music.set_volume(volume)
+        return True
+    except Exception:
+        return False
+
 # class
 class GameSprite(sprite.Sprite):
     def __init__(self, player_image, player_x, player_y, player_speed):
         super().__init__()
-        self.image = transform.scale(image.load(player_image), (110, 110))
+        self.image = load_safe_image(player_image, (110, 110), (0, 200, 255))
         self.speed = player_speed
         self.rect = self.image.get_rect()
         self.rect.x = player_x
         self.rect.y = player_y
     def reset(self):
         window.blit(self.image, (self.rect.x, self.rect.y))
+
+class Item(GameSprite):
+    def __init__(self, item_image, item_x, item_y, item_type):
+        super().__init__(item_image, item_x, item_y, 0)
+        self.image_path = item_image
+        self.image = load_safe_image(item_image, (75, 75), (0, 255, 100))
+        self.rect = self.image.get_rect()
+        self.rect.x = item_x
+        self.rect.y = item_y
+        self.item_type = item_type
 
 # Player class to work
 class Player_Role(GameSprite):
@@ -23,11 +52,12 @@ class Player_Role(GameSprite):
         self.idle_image = self.image
         self.idle_image_left = transform.flip(self.idle_image, True, False)
 
+
         self.attack_frames_right = [
-            transform.scale(image.load("ALEX_Animation_1.png"), (110, 110)),
-            transform.scale(image.load("ALEX_Animation_2.png"), (110, 110)),
-            transform.scale(image.load("ALEX_Animation_3.png"), (110, 110)),
-            transform.scale(image.load("ALEX_Animation_4.png"), (150, 110))
+            load_safe_image("ALEX_Animation_1.png", (110, 110), (255, 100, 0)),
+            load_safe_image("ALEX_Animation_2.png", (110, 110), (255, 150, 0)),
+            load_safe_image("ALEX_Animation_3.png", (110, 110), (255, 200, 0)),
+            load_safe_image("ALEX_Animation_4.png", (150, 110), (255, 250, 0))
         ]
         
         self.attack_frames_left = [transform.flip(frame, True, False) for frame in self.attack_frames_right]
@@ -43,6 +73,7 @@ class Player_Role(GameSprite):
         self.is_grounded = False
         self.jump_pressed = False
         self.hp = 200
+        self.max_hp = 200
     
     def reset(self):
         if self.facing_right:
@@ -54,30 +85,41 @@ class Player_Role(GameSprite):
                 window.blit(self.image, (self.rect.x, self.rect.y))
 
     def update(self, keys_pressed, walls_list):
+        moved_x = 0
         # PLAYER MOVE LEFT
-        if keys_pressed[K_LEFT] and self.rect.x > 3:
-            self.rect.x -= self.speed
+        if keys_pressed[K_LEFT]:
+            moved_x -= self.speed
             self.facing_right = False
             if not self.is_attacking:
                 self.image = self.idle_image_left
-            for wall in walls_list:
-                if self.rect.colliderect(wall.rect):
-                    self.rect.left = wall.rect.right
         # PLAYER MOVE RIGHT 
         if keys_pressed[K_RIGHT]:
-            self.rect.x += self.speed
+            moved_x += self.speed
             self.facing_right = True
             if not self.is_attacking:
                 self.image = self.idle_image
-            for wall in walls_list:
-                if self.rect.colliderect(wall.rect):
+        
+        self.rect.x += moved_x
+
+        if self.rect.x < 0:
+            self.rect.x = 0
+        elif self.rect.right > 700:
+            self.rect.right = 700
+
+        for wall in walls_list:
+            if self.rect.colliderect(wall.rect):
+                if moved_x > 0:
                     self.rect.right = wall.rect.left
+                elif moved_x < 0:
+                    self.rect.left = wall.rect.right
+
         self.y_vel += 0.8
         # GRAVITY
         if self.y_vel > 12:
             self.y_vel = 12
         self.rect.y += self.y_vel
         # WHO WALL REACT IN PLAYER
+        self.is_grounded = False
         for wall in walls_list:
             if self.rect.colliderect(wall.rect):
                 if self.y_vel > 0:
@@ -87,13 +129,10 @@ class Player_Role(GameSprite):
                 elif self.y_vel < 0:
                     self.rect.top = wall.rect.bottom
                     self.y_vel = 0
-        self.rect.y += 1
-        self.is_grounded = False
         # WALLS FOR PLAYER
         for wall in walls_list:
             if self.rect.colliderect(wall.rect):
                 self.is_grounded = True
-        self.rect.y -= 1
         # JUMP MECHANIC 
         if (keys_pressed[K_SPACE] or keys_pressed[K_UP]) and not self.jump_pressed and self.is_grounded:
             self.y_vel = -20
@@ -103,6 +142,7 @@ class Player_Role(GameSprite):
             self.jump_pressed = False
     # ATTACK HOW PLAYER DO DAMAGE IN ENEMYS WITH BUTTON F
     def attack(self, enemies_list, keys_pressed):
+        global Coins
         if keys_pressed[K_f] and not self.is_attacking:
             self.is_attacking = True
             self.attack_frame_index = 0
@@ -117,8 +157,11 @@ class Player_Role(GameSprite):
             for enemy_sprite in enemies_list:
                 if enemy_sprite.hp > 0 and self.rect.colliderect(enemy_sprite.rect):
                     enemy_sprite.hp -= 50
-                    if enemy_sprite.hp < 0:
+                    if enemy_sprite.hp <= 0:
                         enemy_sprite.hp = 0
+                        if not enemy_sprite.coins_given:
+                            Coins += enemy_sprite.enemy_coins
+                            enemy_sprite.coins_given = True
             
         if self.is_attacking:
             now = time.get_ticks()
@@ -136,14 +179,17 @@ class Player_Role(GameSprite):
 
 # Enemy class to work
 class Enemy_Role(GameSprite):
-    def __init__(self, player_image, player_x, player_y, player_speed):
+    def __init__(self, player_image, player_x, player_y, player_speed, enemy_coins):
         super().__init__(player_image, player_x, player_y, player_speed)
+        self.image = load_safe_image(player_image, (110, 110), (255, 0, 0))
         self.hp = 300
+        self.enemy_coins = enemy_coins
+        self.coins_given = False
         self.last_shot = time.get_ticks()
     def shoot(self, bullets_list):
         now = time.get_ticks()
         if now - self.last_shot > 2000:
-            new_bullet = Bullet("bullet.png", self.rect.x, self.rect.y + 40, 7, -1)
+            new_bullet = Bullet("bullet.png", self.rect.x, self.rect.y + 17, 7, -1)
             bullets_list.append(new_bullet)
             self.last_shot = now
 
@@ -153,8 +199,8 @@ class Bullet(GameSprite):
     def __init__(self, Bullet_image, x, y, speed, direction):
         super().__init__(Bullet_image, x, y, speed)
         if Bullet.raw_bullet_img is None:
-            Bullet.raw_bullet_img = image.load(Bullet_image)
-        self.image = transform.scale(Bullet.raw_bullet_img, (20, 20))
+            Bullet.raw_bullet_img = load_safe_image(Bullet_image, (20, 20), (255, 255, 0))
+        self.image = Bullet.raw_bullet_img
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
@@ -197,45 +243,104 @@ def SHOW_LOADING_SCREEN(duration_ms = 2000):
         if progress >= 100:
             progress = 100
             loading_run = False
+        window.fill((20, 20, 30))
         window.blit(loading_image_game, (0, 0))
         window.blit(Loading_title_game,(1,1))
         percent_text = f"Loading... {int(progress)}%"
-        LOADING_SCREEN_text = style.render(percent_text, True, (225, 225, 225))
-        window.blit(LOADING_SCREEN_text, (260, 360))
-        draw.rect(window, (80, 80, 100), (200, 410, 300, 20))
+        LOADING_SCREEN_text = style.render(percent_text, True, (255, 255, 255))
+        window.blit(LOADING_SCREEN_text, (260, 410))
+        draw.rect(window, (80, 80, 100), (200, 450, 300, 20))
         bar_width = int((progress / 100) * 300)
-        draw.rect(window, (0, 225, 100), (200, 410, bar_width, 20))
+        draw.rect(window, (0, 225, 100), (200, 450, bar_width, 20))
         clock.tick(FPS)
         display.update()
 
-def reset_game():
-    global enemy_bullets
+def reset_game(target_level=1):
+    global enemy_bullets, Coins, inventory, items_level_1, items_level_2, saved_hp, saved_max_hp, saved_inventory, saved_coins
     player.rect.x, player.rect.y = 20, 110
-    player.hp = 200
+    player.hp = player.max_hp
     player.y_vel = 0
     player.is_attacking = False
     player.image = player.idle_image
-    enemy.hp = 300
-    Enemy_2.hp = 300
-    Enemy_3.hp = 300
     enemy_bullets.clear()
+    if target_level == 1:
+        player.max_hp = 200
+        player.hp = 200
+        saved_hp = 200
+        saved_max_hp = 200
+        saved_inventory = []
+        saved_coins = 0
+        enemy.hp = 300
+        enemy.coins_given = False
+        Coins = 0
+        inventory.clear()
+        items_level_1 = [Item("Med_Kit.png", 200, 345, "Med Kit")]
+        items_level_2 = [Item("Armor_chest.png", 240, 345, "Armor")]
+    elif target_level == 2:
+        player.max_hp = saved_max_hp
+        player.hp = saved_hp
+        Coins = saved_coins
+        inventory = [{"type": item["type"]} for item in saved_inventory]
+        Enemy_2.hp = 300
+        Enemy_2.coins_given = False
+        Enemy_3.hp = 300
+        Enemy_3.coins_given = False
+        items_level_2 = [Item("Armor_chest.png", 240, 345, "Armor")]
 
+# use items and the items
+def use_item(slot):
+    global inventory
+    if slot < len(inventory):
+        item_to_use = inventory[slot]
+        if item_to_use["type"] == "Med Kit":
+            player.hp = player.max_hp
+            print("Use Med Kit! HP Restored to Full!!!")
+            inventory.pop(slot)
+        elif item_to_use["type"] == "Armor":
+            player.max_hp += 50
+            player.hp += 50
+            print("Use Armor! Max HP increased!!")
+            inventory.pop(slot)
+    
+def draw_inventory():
+    start_x = 215
+    start_y = 455
+    for i in range(5):
+        box_rect = Rect(start_x + (i * 50), start_y, 42, 42)
+        draw.rect(window, (60, 60, 60), box_rect, 2)
+
+        num_text = small_font.render(str(i + 1), True, (200, 200, 200))
+        window.blit(num_text, (start_x + (i * 50) + 18, start_y - 15))
+
+        if i < len(inventory):
+            item_type = inventory[i] ["type"]
+            if item_type in ITEM_IMAGES:
+                window.blit(ITEM_IMAGES[item_type], (start_x + (i * 50) + 4, start_y + 4))
 
 #create game window
 window = display.set_mode((700, 500))
 display.set_caption('The Adventure of ALEX')
 #background and characters
 # BACKGROYND, TITLE AND PORTAL 
-backgroynd_game = transform.scale(image.load("the_background_of_fight.png"),(700, 500))
-title_game = transform.scale(image.load("The_adventure_of_Alex_title.png"),(400, 400))
-loading_image_game = transform.scale(image.load("Loading_background.png"),(700, 500))
-Loading_title_game = transform.scale(image.load("The_adventure_of_Alex_title.png"),(125, 125))
-portal_next_level = transform.scale(image.load("portal_next_level.png"), (120, 135))
+backgroynd_game = load_safe_image("the_background_of_fight.png",(700, 500), (30, 30, 50))
+title_game = load_safe_image("The_adventure_of_Alex_title.png",(400, 400), (100, 100, 255))
+loading_image_game = load_safe_image("Loading_background.png",(700, 500), (20, 20, 20))
+Loading_title_game = load_safe_image("The_adventure_of_Alex_title.png", (125, 125), (100, 100, 255))
+portal_next_level = load_safe_image("portal_next_level.png", (120, 135), (150, 0, 255))
+# items load
+ITEM_IMAGES = {
+    "Med Kit": load_safe_image("Med_Kit.png", (35, 35), (0, 255, 100)),
+    "Armor": load_safe_image("Armor_chest.png", (35, 35), (100, 100, 255))
+}
+
 # CHARACTERS
 player = Player_Role("ALEX_Adventurer.png", 20, 110, 5)
-enemy = Enemy_Role("enemy_for_adventures.png", 550, 160, 3)
-Enemy_2 = Enemy_Role("enemy_for_adventures.png", 550, 160, 3)
-Enemy_3 = Enemy_Role("enemy_for_adventures.png", 400, 310, 3)
+enemy = Enemy_Role("enemy_for_adventures.png", 550, 160, 3, enemy_coins=10)
+Enemy_2 = Enemy_Role("enemy_for_adventures.png", 550, 160, 3, enemy_coins=20)
+Enemy_3 = Enemy_Role("enemy_for_adventures.png", 400, 310, 3, enemy_coins=10)
+# ITEMS 
+items_level_1 = [Item("Med_Kit.png", 200, 345, "Med Kit")]
+items_level_2 = [Item("Armor_chest.png", 240, 345, "Armor")]
 # FONT FOR TEXTS
 font.init()
 style = font.SysFont("Arial", 34)
@@ -261,7 +366,7 @@ upfloor = walls(red_support, blue_support, green_support, 0, 0, 700, 1)
 #level 1 walls
 Door_wall =  walls(red_support, blue_support, green_support, 320, 290, 30, 140)
 first_wall = walls(red, green, blue, 320, 270, 380, 20)
-second_wall = walls(red, green, blue, 150, 220, 30, 210)
+second_wall = walls(red, green, blue, 150, 215, 30, 215)
 trio_wall = walls(red, green, blue, 670, 0, 30, 280)
 all_walls_level_1 = [floor, upfloor, Door_wall, first_wall, second_wall, trio_wall]
 # level two walls
@@ -272,10 +377,13 @@ trio_wall_level_2 = walls(red, green, blue, 200, 230, 30, 200)
 four_wall_level_2 = walls(red, green, blue, 370, 0, 30, 210)
 all_walls_level_2 = [floor, upfloor, Door_wall_level_2, first_wall_level_2, second_wall_level_2, trio_wall_level_2, four_wall_level_2]
 # GLOBAL THINGS
-global levels, Coins, Items
 levels = 0
 Coins = 0
-Items = None
+inventory = []
+saved_hp = 200
+saved_max_hp = 200
+saved_inventory = []
+saved_coins = 0
 previous_level = 0
 
 play_btn_rect = Rect(250, 240, 200, 50)
@@ -305,7 +413,6 @@ SHOW_LOADING_SCREEN(5000)
 # game worked but now the name is run
 run = True
 while run:
-    window.blit(backgroynd_game,(0,0))
     mx, my = mouse.get_pos()
     
     active_music_context = levels
@@ -315,18 +422,13 @@ while run:
     if sound_enabled:
         if active_music_context in [0, "friends", 3]:
             if current_track != "menu_track":
-                mixer.music.load("jorisvermeer_epic_adventure.mp3")
-                mixer.music.play(-1)
-                current_track = "menu_track"
-            mixer.music.set_volume(volume)
-
+               if play_music_safe("jorisvermeer_epic_adventure.mp3", volume):
+                    current_track = "menu_track"
+        
         elif active_music_context in [1, 2]:
             if current_track != "game_track":
-                mixer.music.load("gearfive_epic_adventure.mp3")
-                mixer.music.play(-1)
-                volume = 0.2
-                current_track = "game_track"
-            mixer.music.set_volume(volume)
+                if play_music_safe("gearfive_epic_adventure.mp3", volume):
+                    current_track = "game_track"
         else:
             if mixer.music.get_busy():
                 mixer.music.stop()
@@ -384,14 +486,17 @@ while run:
                         dragging_slider = True
                         mx_clamped = max(slider_bg_rect.x, min(mx, slider_bg_rect.x + slider_bg_rect.width))
                         volume = (mx_clamped - slider_bg_rect.x) / slider_bg_rect.width
-                        mixer.music.set_volume(volume)
+                        try:
+                            mixer.music.set_volume(volume)
+                        except Exception:
+                            pass
                 elif previous_level in [1, 2] and restart_level_rect.collidepoint((mx, my)):
-                    reset_game()
+                    reset_game(previous_level)
                     levels = previous_level
                     SHOW_LOADING_SCREEN(1500)
                 
                 elif previous_level in [1, 2] and go_to_menu_rect.collidepoint((mx, my)):
-                    reset_game()
+                    reset_game(1)
                     levels = 0
                     SHOW_LOADING_SCREEN(1500)
             elif levels == 3:
@@ -399,16 +504,30 @@ while run:
                     reset_game()
                     levels = 0
                     SHOW_LOADING_SCREEN(1500)
+        
         if e.type == MOUSEBUTTONUP and e.button == 1:
             dragging_slider = False
+
+        if e.type == KEYDOWN and levels in [1, 2]:
+            if e.key == K_1: use_item(0)
+            if e.key == K_2: use_item(1)
+            if e.key == K_3: use_item(2)
+            if e.key == K_4: use_item(3)
+            if e.key == K_5: use_item(4)
     
     if levels == "settings" and dragging_slider and sound_enabled:
         mx_clamped = max(slider_bg_rect.x, min(mx, slider_bg_rect.x + slider_bg_rect.width))
         volume = (mx_clamped - slider_bg_rect.x) / slider_bg_rect.width
-        mixer.music.set_volume(volume)
+        try:
+            mixer.music.set_volume(volume)
+        except Exception:
+            pass
+    
+    window.fill((0, 0, 0))
     #levels and items
     #level 0 the menu
     if levels == 0:
+        window.blit(backgroynd_game,(0,0))
         window.blit(title_game,(140,-100))
 
         draw.rect(window, (253, 107, 0) if play_btn_rect.collidepoint((mx, my)) else (169, 231, 231), play_btn_rect)
@@ -471,6 +590,7 @@ while run:
 
     # level 1 the fist adventure
     if levels == 1:
+        window.blit(backgroynd_game,(0,0))
         keys_pressed = key.get_pressed()
         # ACTIVE WALLS AFTER DEFEAT ENEMYS
         active_walls = []
@@ -487,11 +607,19 @@ while run:
         if enemy.hp > 0:
             enemy.reset()
             enemy.shoot(enemy_bullets)
+        
+        for item in items_level_1[:]:
+            item.reset()
+            if player.rect.colliderect(item.rect) and player.hp > 0:
+                if len(inventory) < 5:
+                    inventory.append({"type": item.item_type})
+                    items_level_1.remove(item)
+                    print(f"Picked up {item.item_type}! Total items: {len(inventory)}")
+                else:
+                    print("Inventory is FULL! Can't carry more than 5 items")
+        
         # BULLETS USE
         for bullet in enemy_bullets[:]:
-            if enemy.hp <= 0:
-                enemy_bullets.clear()
-                break
             bullet.update()
             bullet.reset()
             # DAMAGE PLAYER GET FOR BULLETS
@@ -527,28 +655,35 @@ while run:
             enemy_bullets.clear()
             player.rect.x = 20
             player.rect.y = 110
-            player.hp = 200
+            saved_hp = player.hp
+            saved_max_hp = player.max_hp
+            saved_inventory = [{"type": item["type"]} for item in inventory]
+            saved_coins = Coins
             SHOW_LOADING_SCREEN(3000)
             
         # HP HEALTH BARS
         player_hp_text = ui_font.render(f"Alex HP: {player.hp}", True, (255, 255, 255))
         enemy_hp_text = ui_font.render(f"Enemy HP: {enemy.hp}", True, (225, 100, 100))
-        items_text = ui_font.render(f"ITEMS: {Items}", True, (155, 132, 255))
+        items_text = ui_font.render("ITEMS:", True, (155, 132, 255))
         Coin_text = ui_font.render(f"COIN: {Coins}", True, (255, 255, 30))
         window.blit(player_hp_text, (20, 20))
         window.blit(enemy_hp_text, (530, 20))
         window.blit(items_text, (100, 450))
         window.blit(Coin_text, (100, 470))
         
+        draw_inventory()
+
         btn_color = (253, 107, 0) if ingame_settings_rect.collidepoint((mx, my)) else (100, 100, 100)
         draw.rect(window, btn_color, ingame_settings_rect)
         window.blit(small_font.render("SETTINGS", True, (255, 255, 255)), (ingame_settings_rect.x + 8, ingame_settings_rect.y + 5))
         
         # LOSE TEXT 
         if player.hp <= 0:
-            lost_text = style.render("GAME OVER", True, (255, 0, 0))
-            window.blit(lost_text, (280, 200))
+            lost_text = style.render("GAME OVER PRESS 'R' TO RESTART ", True, (255, 0, 0))
+            window.blit(lost_text, (150, 100))
             enemy_bullets.clear()
+            if keys_pressed[K_r]:
+                reset_game(1)
         # DOOR OPEN AND SMALL WIN TEXT
         elif enemy.hp <= 0:
             win_text = style.render("DOOR OPEN! Reach the portal on the right", True, (0, 255, 0))
@@ -556,6 +691,7 @@ while run:
     
     # LEVEL 2 THE SECOND ADVENTURE
     if levels == 2:
+        window.blit(backgroynd_game,(0,0))
         keys_pressed = key.get_pressed()
         # ACTIVE WALLS FOR LEVEL 2 
         active_walls_2 = []
@@ -576,13 +712,21 @@ while run:
         if Enemy_3.hp > 0:
             Enemy_3.reset()
             Enemy_3.shoot(enemy_bullets)
+        
+        for item in items_level_2[:]:
+            item.reset()
+            if player.rect.colliderect(item.rect) and player.hp > 0:
+                if len(inventory) < 5:
+                    inventory.append({"type": item.item_type})
+                    items_level_2.remove(item)
+                    print(f"Picked up {item.item_type}! Total items: {len(inventory)}")
+                else:
+                    print("Inventory is FULL! Can't carry more than 5 items")
+        
         # PORTAL SAW IN LEVEL 2
         window.blit(portal_next_level, (portal_rect.x, portal_rect.y))
         # BULLETS WHEN ENEMYS LOSE
         for bullet in enemy_bullets[:]:
-            if Enemy_2.hp <= 0 and Enemy_3.hp <= 0:
-                enemy_bullets.clear()
-                break
             bullet.update()
             bullet.reset()
             # DAMAGE FOR BULLETS TO PLAYER
@@ -621,7 +765,7 @@ while run:
         player_hp_text = ui_font.render(f"Alex HP: {player.hp}", True, (255, 255, 255))
         enemy_2_hp_text = ui_font.render(f"Enemy1 HP: {Enemy_2.hp}", True, (225, 100, 100))
         enemy_3_hp_text = ui_font.render(f"Enemy2 HP: {Enemy_3.hp}", True, (225, 100, 100))
-        items_text = ui_font.render(f"ITEMS: {Items}", True, (155, 132, 255))
+        items_text = ui_font.render("ITEMS:", True, (155, 132, 255))
         Coin_text = ui_font.render(f"COIN: {Coins}", True, (255, 255, 30))
         window.blit(player_hp_text, (20, 20))
         window.blit(enemy_2_hp_text, (520, 20))
@@ -629,15 +773,19 @@ while run:
         window.blit(items_text, (100, 450))
         window.blit(Coin_text, (100, 470))
         
+        draw_inventory()
+
         btn_color = (253, 107, 0) if ingame_settings_rect.collidepoint((mx, my)) else (100, 100, 100)
         draw.rect(window, btn_color, ingame_settings_rect)
         window.blit(small_font.render("SETTINGS", True, (255, 255, 255)), (ingame_settings_rect.x + 8, ingame_settings_rect.y + 5))
         
         # LOSE FOR PLAYER 
         if player.hp <= 0:
-            lost_text = style.render("GAME OVER", True, (255, 0, 0))
-            window.blit(lost_text, (280, 200))
+            lost_text = style.render("GAME OVER PRESS 'R' TO RESTART", True, (255, 0, 0))
+            window.blit(lost_text, (130, 120))
             enemy_bullets.clear()
+            if keys_pressed[K_r]:
+                reset_game(2)
         # DOOR OPEN AND A SMALL WIN
         elif Enemy_2.hp <= 0 and Enemy_3.hp <= 0:
             win_text = style.render("DOOR OPEN! Reach the portal on the right", True, (0, 255, 0))

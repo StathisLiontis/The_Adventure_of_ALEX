@@ -1,9 +1,10 @@
+# Version 2.0
 # import things
 from pygame import *
 # sure pygame core
 init()
-
 # defs for safe
+# be sure the game run without files.
 def load_safe_image(path, size, color=(255, 0, 255)):
     try:
         return transform.scale(image.load(path), size)
@@ -11,7 +12,7 @@ def load_safe_image(path, size, color=(255, 0, 255)):
         surf = Surface(size)
         surf.fill(color)
         return surf
-
+# be sure music plays
 def play_music_safe(track_path, volume):
     try:
         mixer.music.load(track_path)
@@ -33,6 +34,7 @@ class GameSprite(sprite.Sprite):
     def reset(self):
         window.blit(self.image, (self.rect.x, self.rect.y))
 
+# items class work 
 class Item(GameSprite):
     def __init__(self, item_image, item_x, item_y, item_type):
         super().__init__(item_image, item_x, item_y, 0)
@@ -52,7 +54,7 @@ class Player_Role(GameSprite):
         self.idle_image = self.image
         self.idle_image_left = transform.flip(self.idle_image, True, False)
 
-
+        # the animation attack
         self.attack_frames_right = [
             load_safe_image("ALEX_Animation_1.png", (110, 110), (255, 100, 0)),
             load_safe_image("ALEX_Animation_2.png", (110, 110), (255, 150, 0)),
@@ -246,6 +248,7 @@ def SHOW_LOADING_SCREEN(duration_ms = 2000):
         window.fill((20, 20, 30))
         window.blit(loading_image_game, (0, 0))
         window.blit(Loading_title_game,(1,1))
+        window.blit(version_text, (620, 480))
         percent_text = f"Loading... {int(progress)}%"
         LOADING_SCREEN_text = style.render(percent_text, True, (255, 255, 255))
         window.blit(LOADING_SCREEN_text, (260, 410))
@@ -254,37 +257,47 @@ def SHOW_LOADING_SCREEN(duration_ms = 2000):
         draw.rect(window, (0, 225, 100), (200, 450, bar_width, 20))
         clock.tick(FPS)
         display.update()
-
+# restart the game without exit
 def reset_game(target_level=1):
     global enemy_bullets, Coins, inventory, items_level_1, items_level_2, saved_hp, saved_max_hp, saved_inventory, saved_coins
+    # player restart
     player.rect.x, player.rect.y = 20, 110
     player.hp = player.max_hp
     player.y_vel = 0
     player.is_attacking = False
     player.image = player.idle_image
     enemy_bullets.clear()
+    # restart in level 1
     if target_level == 1:
+        # player hp
         player.max_hp = 200
         player.hp = 200
         saved_hp = 200
         saved_max_hp = 200
+        # save things
         saved_inventory = []
         saved_coins = 0
+        # coins for enemy
         enemy.hp = 300
         enemy.coins_given = False
         Coins = 0
+        # inventory
         inventory.clear()
         items_level_1 = [Item("Med_Kit.png", 200, 345, "Med Kit")]
         items_level_2 = [Item("Armor_chest.png", 240, 345, "Armor")]
+    # restart in level 2 and save items, health and coins for level 1
     elif target_level == 2:
+        # save for level 1
         player.max_hp = saved_max_hp
         player.hp = saved_hp
         Coins = saved_coins
         inventory = [{"type": item["type"]} for item in saved_inventory]
+        # coins for enemys
         Enemy_2.hp = 300
         Enemy_2.coins_given = False
         Enemy_3.hp = 300
         Enemy_3.coins_given = False
+        # inventory
         items_level_2 = [Item("Armor_chest.png", 240, 345, "Armor")]
 
 # use items and the items
@@ -301,7 +314,7 @@ def use_item(slot):
             player.hp += 50
             print("Use Armor! Max HP increased!!")
             inventory.pop(slot)
-    
+# see the inventory in game
 def draw_inventory():
     start_x = 215
     start_y = 455
@@ -323,7 +336,7 @@ display.set_caption('The Adventure of ALEX')
 #background and characters
 # BACKGROYND, TITLE AND PORTAL 
 backgroynd_game = load_safe_image("the_background_of_fight.png",(700, 500), (30, 30, 50))
-title_game = load_safe_image("The_adventure_of_Alex_title.png",(400, 400), (100, 100, 255))
+title_game = load_safe_image("The_adventure_of_Alex_title.png",(300, 300), (100, 100, 255))
 loading_image_game = load_safe_image("Loading_background.png",(700, 500), (20, 20, 20))
 Loading_title_game = load_safe_image("The_adventure_of_Alex_title.png", (125, 125), (100, 100, 255))
 portal_next_level = load_safe_image("portal_next_level.png", (120, 135), (150, 0, 255))
@@ -332,7 +345,6 @@ ITEM_IMAGES = {
     "Med Kit": load_safe_image("Med_Kit.png", (35, 35), (0, 255, 100)),
     "Armor": load_safe_image("Armor_chest.png", (35, 35), (100, 100, 255))
 }
-
 # CHARACTERS
 player = Player_Role("ALEX_Adventurer.png", 20, 110, 5)
 enemy = Enemy_Role("enemy_for_adventures.png", 550, 160, 3, enemy_coins=10)
@@ -385,11 +397,16 @@ saved_max_hp = 200
 saved_inventory = []
 saved_coins = 0
 previous_level = 0
-
-play_btn_rect = Rect(250, 240, 200, 50)
-friends_btn_rect = Rect(250, 310, 200, 50)
-settings_btn_rect = Rect(250, 380, 200, 50)
-
+# vesion of the game now
+versions = "V" + str(2.0)
+version_text = small_font.render(f"Version: {versions}", True, (255, 255, 255))
+# buttons in menu
+play_btn_rect = Rect(250, 200, 200, 50)
+friends_btn_rect = Rect(250, 270, 200, 50)
+settings_btn_rect = Rect(250, 340, 200, 50)
+how_to_play_menu_btn = Rect(250, 410, 200, 45)
+# special
+ingame_how_to_play_rect = Rect(665, 445, 30, 30)
 ingame_settings_rect = Rect(15, 455, 80, 30)
 back_btn_rect = Rect(140, 380, 160, 45)
 quit_rect = Rect(400, 380, 160, 45)
@@ -398,11 +415,54 @@ sound_toggle_rect = Rect(250, 170, 200, 45)
 restart_level_rect = Rect(140, 330, 170, 40)
 go_to_menu_rect = Rect(400, 330, 170, 40)
 level3_menu_rect = Rect(220, 300, 200, 50)
+# how to play window
+PANEL_W, PANEL_H = 600, 270
+PANEL_X, PANEL_Y = 60, 80
+CONTENT_H = 650
 
+how_to_play_content = Surface((PANEL_W - 20, CONTENT_H))
+how_scroll_y = 0
+scroll_speed = 25
+is_dragging_scroll = False
+drag_start_y = 0
+
+SCROLLBAR_W = 14
+SCROLLBAR_X = PANEL_X + PANEL_W - SCROLLBAR_W
+
+how_to_play_content.fill((30, 30, 45))
+how_to_play_content.blit(style.render("HOW TO PLAY", True, (255, 215, 0)), (20, 15))
+# the how to play text
+instructions = [
+    "CONTROLS:",
+    "- LEFT / RIGHT ARROWS : MOVE ALEX",
+    "- SPACE / UP ARROW : JUMP",
+    "- F KEY : MELEE ATTACK (ATTACK ENEMIES)",
+    "- 1 TO 5 KEYS : USE INVENTORY ITEMS",
+    " ",
+    "GAMEPLAY RULES:",
+    "- DEFEAT ALL ENEMIES TO OPEN THE DOOR.",
+    "- REACH THE PORTAL ON THE RIGHT TO ENTER THE NEXT",
+    "  LEVEL.",
+    "- COLLECT MED KITS AND ARMOR CHESTS TO SURVIVE.",
+    "- WATCH OUT FOR ENEMY BULLETS!!",
+    " ",
+    "GOOD LUCK  ADVENTURER!!!"
+]
+# color in some words
+for idx, line in enumerate(instructions):
+    if "CONTROLS:" in line or "RULES:" in line:
+        line_color = (255, 255, 100)
+    elif "GOOD LUCK  ADVENTURER!!!" in line:
+        line_color = (0, 200, 255)
+    else:
+        line_color = (220, 220, 220)
+    
+    txt_surf = ui_font.render(line, True, line_color)
+    how_to_play_content.blit(txt_surf, (20, 65 + idx * 35))
+# for volume and sound
 volume = 0.3
 sound_enabled = True
 dragging_slider = False
-
 #music for background
 mixer.init()
 current_track = None
@@ -414,13 +474,13 @@ SHOW_LOADING_SCREEN(5000)
 run = True
 while run:
     mx, my = mouse.get_pos()
-    
+
     active_music_context = levels
     if levels == "settings":
         active_music_context = previous_level
     
     if sound_enabled:
-        if active_music_context in [0, "friends", 3]:
+        if active_music_context in [0, "friends", "how_to_play", 3]:
             if current_track != "menu_track":
                if play_music_safe("jorisvermeer_epic_adventure.mp3", volume):
                     current_track = "menu_track"
@@ -443,7 +503,13 @@ while run:
         if e.type == QUIT:
             print("QUIT FOR QUIT")
             run = False
-    
+        # scroll with mouse wheel
+        if e.type == MOUSEWHEEL and levels == "how_to_play":
+            how_scroll_y -= e.y * scroll_speed
+            max_scroll = CONTENT_H - PANEL_H
+            if how_scroll_y < 0: how_scroll_y = 0
+            if how_scroll_y > max_scroll: how_scroll_y = max_scroll
+        # buttons in menu
         if e.type == MOUSEBUTTONDOWN and e.button == 1:
             if levels == 0:
                 if play_btn_rect.collidepoint((mx, my)):
@@ -458,15 +524,41 @@ while run:
                     previous_level = 0
                     print("Settings")
                     levels = "settings"
+                elif how_to_play_menu_btn.collidepoint((mx, my)):
+                    previous_level = 0
+                    print("how to play")
+                    levels = "how_to_play"
             
             elif levels in [1, 2]:
                 if ingame_settings_rect.collidepoint((mx, my)):
                     previous_level = levels
                     levels = "settings"
+                elif ingame_how_to_play_rect.collidepoint((mx, my)):
+                    previous_level = levels
+                    levels = "how_to_play"
             
             elif levels == "friends":
                 if back_btn_rect.collidepoint((mx, my)):
                     levels = 0 
+            
+            elif levels == "how_to_play":
+                if back_btn_rect.collidepoint((mx, my)):
+                    levels = previous_level
+                
+                max_scroll = CONTENT_H - PANEL_H
+                vis_ratio = PANEL_H / CONTENT_H
+                thumb_h = max(int(PANEL_H * vis_ratio), 30)
+                track_space = PANEL_H - thumb_h
+                thumb_y = PANEL_Y + (int((how_scroll_y / max_scroll) * track_space) if max_scroll > 0 else 0)
+                thumb_rect = Rect(SCROLLBAR_X, thumb_y, SCROLLBAR_W, thumb_h)
+                
+                if thumb_rect.collidepoint((mx, my)):
+                    is_dragging_scroll = True
+                    drag_start_y = my
+                    drag_start_scroll_y = how_scroll_y
+                elif mx >= SCROLLBAR_X and mx <= SCROLLBAR_X + SCROLLBAR_W and PANEL_Y <= my <= PANEL_Y + PANEL_H:
+                    click_ratio = (my - PANEL_Y) / PANEL_H
+                    how_scroll_y = int(click_ratio * max_scroll)
             
             elif levels == "settings":
                 if back_btn_rect.collidepoint((mx, my)):
@@ -507,14 +599,27 @@ while run:
         
         if e.type == MOUSEBUTTONUP and e.button == 1:
             dragging_slider = False
-
+        # the 1-5 keys to use a item
         if e.type == KEYDOWN and levels in [1, 2]:
             if e.key == K_1: use_item(0)
             if e.key == K_2: use_item(1)
             if e.key == K_3: use_item(2)
             if e.key == K_4: use_item(3)
             if e.key == K_5: use_item(4)
-    
+
+    if levels == "how_to_play" and is_dragging_scroll:
+        max_scroll = CONTENT_H - PANEL_H
+        vis_ratio = PANEL_H / CONTENT_H
+        thumb_h = max(int(PANEL_H * vis_ratio), 30)
+        track_space = PANEL_H - thumb_h
+
+        delta_y = my - drag_start_y
+        scroll_change = (delta_y / track_space) * max_scroll if track_space > 0 else 0
+        how_scroll_y = drag_start_scroll_y + scroll_change
+
+        if how_scroll_y < 0: how_scroll_y = 0
+        if how_scroll_y > max_scroll: how_scroll_y = max_scroll
+
     if levels == "settings" and dragging_slider and sound_enabled:
         mx_clamped = max(slider_bg_rect.x, min(mx, slider_bg_rect.x + slider_bg_rect.width))
         volume = (mx_clamped - slider_bg_rect.x) / slider_bg_rect.width
@@ -527,18 +632,42 @@ while run:
     #levels and items
     #level 0 the menu
     if levels == 0:
-        window.blit(backgroynd_game,(0,0))
-        window.blit(title_game,(140,-100))
-
+        window.blit(backgroynd_game,(0, 0))
+        window.blit(title_game,(200, -70))
+        window.blit(version_text, (620, 480))
+        # button of play
         draw.rect(window, (253, 107, 0) if play_btn_rect.collidepoint((mx, my)) else (169, 231, 231), play_btn_rect)
         window.blit(style.render('PLAY', True, (255, 255, 255)), (play_btn_rect.x + 60, play_btn_rect.y + 5))
-
+        # button of 1v1 friend
         draw.rect(window, (253, 107, 0) if friends_btn_rect.collidepoint((mx, my)) else (169, 231, 231), friends_btn_rect)
         window.blit(style.render("1V1 FRIENDS", True, (255, 255, 255)), (friends_btn_rect.x + 15, friends_btn_rect.y + 10))
-
+        # button of settings
         draw.rect(window, (253, 107, 0) if settings_btn_rect.collidepoint((mx, my)) else (169, 231, 231), settings_btn_rect)
         window.blit(style.render("SETTINGS", True, (255, 255, 255)), (settings_btn_rect.x + 25, settings_btn_rect.y + 5))
-       
+        # button of how to play
+        draw.rect(window, (253, 107, 0) if how_to_play_menu_btn.collidepoint((mx, my)) else (169, 231, 231), how_to_play_menu_btn)
+        window.blit(ui_font.render("HOW TO PLAY", True, (255, 255, 255)), (how_to_play_menu_btn.x + 30, how_to_play_menu_btn.y + 10))
+    # how to play work
+    elif levels == "how_to_play":
+        window.blit(backgroynd_game,(0, 0))
+        visible_area = Rect(0, int(how_scroll_y), PANEL_W - SCROLLBAR_W, PANEL_H)
+        window.blit(how_to_play_content, (PANEL_X, PANEL_Y), visible_area)
+
+        max_scroll = CONTENT_H - PANEL_H
+        vis_ratio = PANEL_H / CONTENT_H
+        thumb_h = max(int(PANEL_H * vis_ratio), 30)
+        track_space = PANEL_H - thumb_h
+        thumb_y = PANEL_Y + (int((how_scroll_y / max_scroll) * track_space) if max_scroll > 0 else 0)
+        thumb_rect = Rect(SCROLLBAR_X, thumb_y, SCROLLBAR_W, thumb_h)
+
+        draw.rect(window, (20, 20, 25), (SCROLLBAR_X, PANEL_Y, SCROLLBAR_W, PANEL_H))
+        thumb_color = (180, 180, 180) if (thumb_rect.collidepoint((mx, my)) or is_dragging_scroll) else (110, 110, 110)
+        draw.rect(window, thumb_color, thumb_rect, border_radius=4)
+        draw.rect(window, (100, 100, 120), (PANEL_X, PANEL_Y, PANEL_W, PANEL_H), 2)
+
+        draw.rect(window, (150, 150, 150) if back_btn_rect.collidepoint((mx, my)) else (100, 100, 100), back_btn_rect)
+        window.blit(style.render("BACK", True, (255, 255, 255)), (back_btn_rect.x + 35, back_btn_rect.y + 5))
+    # friend window
     elif levels == "friends":
         panel = Surface((500, 320))
         panel.fill((40, 40, 40))
@@ -549,7 +678,7 @@ while run:
 
         draw.rect(window, (150, 150, 150) if back_btn_rect.collidepoint((mx, my)) else (100, 100, 100), back_btn_rect)
         window.blit(style.render("BACK", True, (255, 255, 255)), (back_btn_rect.x + 35, back_btn_rect.y + 5))
-    
+    # settings
     elif levels == "settings":
         settings_panel = Surface((500, 360))
         settings_panel.fill((40, 40, 40))
@@ -590,7 +719,9 @@ while run:
 
     # level 1 the fist adventure
     if levels == 1:
+        # window blits
         window.blit(backgroynd_game,(0,0))
+        window.blit(version_text, (620, 480))
         keys_pressed = key.get_pressed()
         # ACTIVE WALLS AFTER DEFEAT ENEMYS
         active_walls = []
@@ -607,7 +738,7 @@ while run:
         if enemy.hp > 0:
             enemy.reset()
             enemy.shoot(enemy_bullets)
-        
+        # items
         for item in items_level_1[:]:
             item.reset()
             if player.rect.colliderect(item.rect) and player.hp > 0:
@@ -617,7 +748,6 @@ while run:
                     print(f"Picked up {item.item_type}! Total items: {len(inventory)}")
                 else:
                     print("Inventory is FULL! Can't carry more than 5 items")
-        
         # BULLETS USE
         for bullet in enemy_bullets[:]:
             bullet.update()
@@ -660,7 +790,6 @@ while run:
             saved_inventory = [{"type": item["type"]} for item in inventory]
             saved_coins = Coins
             SHOW_LOADING_SCREEN(3000)
-            
         # HP HEALTH BARS
         player_hp_text = ui_font.render(f"Alex HP: {player.hp}", True, (255, 255, 255))
         enemy_hp_text = ui_font.render(f"Enemy HP: {enemy.hp}", True, (225, 100, 100))
@@ -670,13 +799,16 @@ while run:
         window.blit(enemy_hp_text, (530, 20))
         window.blit(items_text, (100, 450))
         window.blit(Coin_text, (100, 470))
-        
+        # inventory show
         draw_inventory()
-
+        # button of settings in game
         btn_color = (253, 107, 0) if ingame_settings_rect.collidepoint((mx, my)) else (100, 100, 100)
         draw.rect(window, btn_color, ingame_settings_rect)
         window.blit(small_font.render("SETTINGS", True, (255, 255, 255)), (ingame_settings_rect.x + 8, ingame_settings_rect.y + 5))
-        
+        # button of how to play in game
+        how_color = (253, 107, 0) if ingame_how_to_play_rect.collidepoint((mx, my)) else (0, 150, 200)
+        draw.rect(window, how_color, ingame_how_to_play_rect)
+        window.blit(small_font.render("i", True, (255, 255, 255)), (ingame_how_to_play_rect.x + 12, ingame_how_to_play_rect.y + 5))
         # LOSE TEXT 
         if player.hp <= 0:
             lost_text = style.render("GAME OVER PRESS 'R' TO RESTART ", True, (255, 0, 0))
@@ -691,7 +823,9 @@ while run:
     
     # LEVEL 2 THE SECOND ADVENTURE
     if levels == 2:
+        # window blits
         window.blit(backgroynd_game,(0,0))
+        window.blit(version_text, (620, 480))
         keys_pressed = key.get_pressed()
         # ACTIVE WALLS FOR LEVEL 2 
         active_walls_2 = []
@@ -712,7 +846,7 @@ while run:
         if Enemy_3.hp > 0:
             Enemy_3.reset()
             Enemy_3.shoot(enemy_bullets)
-        
+        # items
         for item in items_level_2[:]:
             item.reset()
             if player.rect.colliderect(item.rect) and player.hp > 0:
@@ -722,7 +856,6 @@ while run:
                     print(f"Picked up {item.item_type}! Total items: {len(inventory)}")
                 else:
                     print("Inventory is FULL! Can't carry more than 5 items")
-        
         # PORTAL SAW IN LEVEL 2
         window.blit(portal_next_level, (portal_rect.x, portal_rect.y))
         # BULLETS WHEN ENEMYS LOSE
@@ -772,13 +905,16 @@ while run:
         window.blit(enemy_3_hp_text, (520, 50))
         window.blit(items_text, (100, 450))
         window.blit(Coin_text, (100, 470))
-        
+        # inventory show
         draw_inventory()
-
+        # button of settings in-game
         btn_color = (253, 107, 0) if ingame_settings_rect.collidepoint((mx, my)) else (100, 100, 100)
         draw.rect(window, btn_color, ingame_settings_rect)
         window.blit(small_font.render("SETTINGS", True, (255, 255, 255)), (ingame_settings_rect.x + 8, ingame_settings_rect.y + 5))
-        
+        # button of how to play in-game
+        how_color = (253, 107, 0) if ingame_how_to_play_rect.collidepoint((mx, my)) else (0, 150, 200)
+        draw.rect(window, how_color, ingame_how_to_play_rect)
+        window.blit(small_font.render("i", True, (255, 255, 255)), (ingame_how_to_play_rect.x + 12, ingame_how_to_play_rect.y + 5))
         # LOSE FOR PLAYER 
         if player.hp <= 0:
             lost_text = style.render("GAME OVER PRESS 'R' TO RESTART", True, (255, 0, 0))
@@ -796,6 +932,7 @@ while run:
         window.fill((20, 20, 40))
         end_text = style.render("LEVEL 3 COMING SOON!", True, (225, 225, 225))
         window.blit(end_text, (180, 220))
+        window.blit(version_text, (620, 480))
 
         menu_btn_color_3 = (253, 107, 0) if level3_menu_rect.collidepoint((mx, my)) else (100, 100, 100)
         draw.rect(window, menu_btn_color_3, level3_menu_rect)
